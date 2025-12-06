@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART SWALAYAN - Transaksi Masuk/Keluar (CORS Fix)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode"></script> 
+    
+    <style>
+        /* --- 1. PALET WARNA & FONT MODERN --- */
+        :root { 
+            --primary-color: #1976D2; 
+            --secondary-color: #4CAF50; 
+            --danger-color: #F44336; 
+            --text-dark: #212121;
+            --text-light: #757575;
+            --bg-body: #EFEFEF;
+            --bg-card: #FFFFFF;
+            --border-radius-large: 10px;
+            --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --border-radius-small: 6px;
+            --shadow-heavy: 0 8px 25px rgba(0, 0, 0, 0.2);
+            --warning-color: #FF9800; /* Warna baru untuk kegagalan */
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+        body { 
+            background-color: var(--bg-body); 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start; 
+            min-height: 100vh; 
+            padding: 20px 10px; 
+            color: var(--text-dark); 
+        }
+
+        /* --- 2. CONTAINER UTAMA --- */
+        .container { 
+            background-color: var(--bg-card); 
+            padding: 30px 20px; 
+            border-radius: var(--border-radius-large); 
+            box-shadow: var(--shadow-medium); 
+            width: 100%; 
+            max-width: 420px; 
+            transition: all 0.3s ease; 
+        }
+
+        /* --- 3. HEADER --- */
+        .header-logo { 
+            display: block; 
+            max-width: 100%; 
+            max-height: 90px; 
+            height: auto; 
+            margin: 0 auto 20px auto; 
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Hapus elemen info user yang tidak digunakan */
+        .user-info { display: none; } 
+
+        /* --- 4. INPUT GROUP STYLE --- */
+        .input-group { margin-bottom: 20px; }
+        .input-group label { 
+            display: block; 
+            margin-bottom: 6px; 
+            color: var(--text-dark); 
+            font-weight: 700; 
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+        }
+        .input-group label i { margin-right: 6px; color: var(--primary-color); }
+
+        input[type="text"], input[type="number"], input[type="date"] { 
+            width: 100%; 
+            padding: 14px 15px; 
+            border: 1px solid #DEDEDE; 
+            border-radius: 8px; 
+            font-size: 1em; 
+            color: var(--text-dark); 
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input:focus { 
+            border-color: var(--primary-color); 
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2); 
+            outline: none; 
+            background-color: #FFFFFF;
+        }
+        
+        /* --- 5. SCANNER/BARCODE INPUT GROUP --- */
+        .input-with-icon { 
+            display: flex; 
+            align-items: stretch; 
+        }
+        .input-with-icon input { 
+            flex-grow: 1; 
+            border-radius: 8px 0 0 8px; 
+            border-right: none; 
+        }
+        
+        button { 
+            cursor: pointer; 
+            border: none; 
+            font-weight: 500; 
+            transition: background-color 0.3s, transform 0.1s; 
+            white-space: nowrap; 
+            padding: 14px 15px; 
+            font-size: 0.95em; 
+            min-width: 40px; 
+        }
+        
+        .scan-btn, .minus-btn { 
+            color: white; 
+            border-radius: 0 8px 8px 0; 
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); 
+            min-width: 80px; 
+        }
+        .scan-btn { 
+            background-color: var(--primary-color); 
+            border-radius: 0 8px 8px 0; 
+        }
+        .scan-btn:hover { background-color: #1565C0; }
+        
+        .minus-btn { 
+            background-color: var(--danger-color); 
+            padding: 14px 18px; 
+            min-width: 50px; 
+            border-radius: 0 8px 8px 0; 
+        }
+        .minus-btn.active { background-color: var(--secondary-color); } 
+        .minus-btn:hover { background-color: #D32F2F; }
+        .minus-btn.active:hover { background-color: #388E3C; }
+
+        /* --- 6. SAVE BUTTON --- */
+        .save-btn { 
+            width: 100%; 
+            padding: 16px 20px; 
+            background-color: var(--secondary-color); 
+            color: white; 
+            border-radius: 10px; 
+            font-size: 1.1em; 
+            font-weight: 700; 
+            margin-top: 30px; 
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4); 
+        }
+        .save-btn:hover { background-color: #388E3C; transform: translateY(-1px); }
+
+        /* --- 7. ADMIN BUTTON (Dihapus) --- */
+        #adminPanelButton { display: none; }
+
+        /* --- 8. SCANNER DISPLAY STYLE (Barcode Scanner) --- */
+        .scanner-placeholder { 
+            margin-top: 15px; 
+            width: 100%; 
+            /* PERUBAHAN TINGGI DI SINI: DARI 300px MENJADI 350px */
+            height: 350px; 
+            position: relative; 
+            background-color: #000000; 
+            border: 3px solid var(--text-light); 
+            border-radius: 10px; 
+            display: none; 
+            overflow: hidden; 
+        }
+        .scanner-placeholder.active { 
+            display: block; 
+            border-color: var(--primary-color); 
+        }
+        
+        #reader { 
+            width: 100%; height: 100%; 
+            position: relative;
+        }
+        
+        /* Hilangkan elemen UI bawaan html5-qrcode yang tidak diperlukan */
+        .html5-qrcode-button-camera-start, .html5-qrcode-element {
+            display: none !important;
+        }
+        
+        /* Pastikan video feed yang tampil di dalam #reader */
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover; 
+        }
+
+        /* --- 9. MESSAGES & QUEUE STATUS --- */
+        .message { 
+            text-align: center; margin-top: 20px; padding: 12px; 
+            border-radius: 8px; font-weight: 500; opacity: 0; 
+            transition: opacity 0.5s, transform 0.5s; transform: translateY(10px); 
+        }
+        .message.success { background-color: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+        .message.error { background-color: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+        .message.loading { background-color: #FFFDE7; color: #FBC02D; border: 1px solid #FFF9C4; }
+        .message.show { opacity: 1; transform: translateY(0); }
+        
+        #queueStatus {
+            background-color: #FFF3E0; 
+            color: var(--warning-color); 
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            margin-top: 15px;
+            border: 1px solid #FFCC80;
+            display: none; 
+        }
+
+        /* --- 10. MEDIA QUERIES (Responsif) --- */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 15px; 
+            }
+            .header-logo { 
+                max-height: 70px; 
+                margin-bottom: 15px;
+            }
+            .scanner-placeholder {
+                /* Perubahan Responsif */
+                height: 300px; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="smart.jpg" alt="Logo Smart Swalayan" class="header-logo"> 
+        
+        <div class="user-info" style="display: none;"></div> 
+
+        <form id="inventoryForm">
+            <div class="input-group barcode-group">
+                <label for="barcode"><i class="fas fa-barcode"></i> Barcode Barang</label>
+                <div class="input-with-icon">
+                    <input type="text" id="barcode" name="barcode" placeholder="Input atau Scan Barcode" required>
+                    <button type="button" id="scanButton" class="scan-btn" title="Klik untuk Scan Barcode">
+                        <i class="fas fa-camera-retro"></i> SCAN
+                    </button>
+                </div>
+                
+                <div id="scanner-container" class="scanner-placeholder">
+                    <div id="reader"></div> 
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="qty"><i class="fas fa-boxes"></i> Jumlah (Masuk / Keluar)</label>
+                <div class="input-with-icon"> 
+                    <input type="number" 
+                        id="qty" 
+                        name="qty" 
+                        placeholder="Masukkan jumlah (+ untuk Masuk, - untuk Keluar)" 
+                        required
+                        inputmode="decimal"
+                        pattern="^-?\d*\.?\d*$">
+                        
+                    <button type="button" id="minusButton" class="minus-btn" title="Klik untuk Tambah/Hapus Tanda Minus">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="lokasi"><i class="fas fa-warehouse"></i>Lokasi</label>
+                <input type="text" 
+                    id="lokasi" 
+                    name="lokasi" 
+                    placeholder="Input Lokasi/Rak/Gudang" 
+                    required
+                    oninput="this.value = this.value.toUpperCase()">
+            </div>
+
+            <button type="submit" id="saveButton" class="save-btn"><i class="fas fa-cloud-upload-alt"></i> SIMPAN TRANSAKSI</button>
+            
+            <div id="queueStatus" style="display: none;">
+                <i class="fas fa-hourglass-half"></i> <span id="queueCount">0</span> Transaksi menunggu.
+            </div>
+            
+            <p id="message" class="message"></p>
+        </form>
+    </div>
+
+    <script>
+        // --- PENTING: GANTI DENGAN URL APPS SCRIPT ANDA ---
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxIN1hJfiFORi8Zz7xox9ho5GqXsuZitEUu4S-RqxvqA-wgZ4pBZHK739PEtReE_ceOKw/exec';
+        // --- AKHIR PENTING ---
+
+        const INVENTORY_FORM = document.getElementById('inventoryForm');
+        const MESSAGE_ELEMENT = document.getElementById('message');
+        const QTY_INPUT = document.getElementById('qty');
+        const MINUS_BUTTON = document.getElementById('minusButton');
+        const BARCODE_INPUT = document.getElementById('barcode');
+        const SCAN_BUTTON = document.getElementById('scanButton');
+        const SCANNER_CONTAINER = document.getElementById('scanner-container');
+        const LOKASI_INPUT = document.getElementById('lokasi'); 
+        const QUEUE_STATUS = document.getElementById('queueStatus');
+        const QUEUE_COUNT = document.getElementById('queueCount');
+        
+        let html5QrCodeBarcode = null; 
+        
+        const QUEUE_KEY = 'transactionQueue';
+        let isProcessingQueue = false;
+
+        // --- UTILITY FUNCTIONS (Tidak diubah) ---
+        function displayMessage(text, type = 'success', duration = 5000) {
+            MESSAGE_ELEMENT.textContent = text;
+            MESSAGE_ELEMENT.classList.remove('show', 'error', 'loading', 'success');
+            MESSAGE_ELEMENT.classList.add(type);
+            setTimeout(() => {
+                MESSAGE_ELEMENT.classList.add('show');
+            }, 10); 
+
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    MESSAGE_ELEMENT.classList.remove('show');
+                }, duration);
+            }
+        }
+        
+        function resetForm() {
+            BARCODE_INPUT.value = '';
+            QTY_INPUT.value = '';
+            LOKASI_INPUT.value = ''; 
+            MINUS_BUTTON.classList.remove('active');
+            BARCODE_INPUT.focus();
+        }
+
+        // --- QUEUE MANAGEMENT (Tidak diubah) ---
+        function getQueue() {
+            const queueJson = localStorage.getItem(QUEUE_KEY);
+            return queueJson ? JSON.parse(queueJson) : [];
+        }
+
+        function saveQueue(queue) {
+            localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+            updateQueueStatus();
+        }
+        
+        function updateQueueStatus() {
+            const queue = getQueue();
+            const count = queue.length;
+            QUEUE_COUNT.textContent = count;
+            QUEUE_STATUS.style.display = count > 0 ? 'block' : 'none';
+        }
+        
+        function enqueueTransaction(data) {
+            const queue = getQueue();
+            queue.push(data);
+            saveQueue(queue);
+            processQueue(); 
+        }
+
+        function loadFailedTransaction(transaction) {
+            BARCODE_INPUT.value = transaction.barcode;
+            QTY_INPUT.value = transaction.qty;
+            LOKASI_INPUT.value = transaction.lokasi;
+
+            if (transaction.qty.startsWith('-')) {
+                MINUS_BUTTON.classList.add('active');
+            } else {
+                MINUS_BUTTON.classList.remove('active');
+            }
+
+            BARCODE_INPUT.focus();
+            displayMessage('⚠️ GAGAL! Transaksi dikembalikan. Koreksi dan Simpan Ulang!', 'error', 15000);
+        }
+
+        async function processQueue() {
+            if (isProcessingQueue) return;
+            isProcessingQueue = true;
+            
+            let queue = getQueue();
+
+            if (queue.length === 0) {
+                isProcessingQueue = false;
+                updateQueueStatus();
+                return;
+            }
+
+            const transactionToProcess = queue[0];
+            
+            try {
+                if (queue.length > 0) { 
+                     displayMessage(`⏳ Mengirim 1 dari ${queue.length} transaksi...`, 'loading', 10000); 
+                }
+
+                const response = await sendApiRequest('saveInventory', transactionToProcess);
+                
+                if (response.status === 'success') {
+                    queue.shift(); 
+                    saveQueue(queue);
+                    console.log("✅ Transaksi sukses terkirim dan dihapus dari antrian.");
+                    
+                    if (queue.length === 0) {
+                        displayMessage('✅ Semua transaksi berhasil disimpan.', 'success', 3000);
+                    } 
+                    
+                } else {
+                    throw new Error(response.message || 'Respons Apps Script Error.');
+                }
+
+            } catch (error) {
+                console.error("❌ Gagal mengirim transaksi. Dikembalikan ke form.", error.message);
+                
+                const failedTransaction = queue.shift();
+                saveQueue(queue); 
+                
+                loadFailedTransaction(failedTransaction);
+                
+                isProcessingQueue = false;
+                return; 
+            }
+            
+            isProcessingQueue = false;
+            
+            if (queue.length > 0) {
+                setTimeout(processQueue, 500); 
+            } else {
+                updateQueueStatus();
+            }
+        }
+        
+        // --- API REQUEST (Tidak diubah) ---
+        async function sendApiRequest(action, data = {}) {
+            const payload = { action, ...data };
+            const cacheBuster = `?t=${new Date().getTime()}`; 
+            const targetUrl = GAS_API_URL + cacheBuster; 
+            const bodyData = new URLSearchParams(payload).toString();
+
+            try {
+                const response = await fetch(targetUrl, { 
+                    method: 'POST',
+                    mode: 'cors', 
+                    headers: { 
+                        'Content-Type': 'application/x-www-form-urlencoded' 
+                    }, 
+                    body: bodyData
+                });
+                
+                if (!response.ok) {
+                     throw new Error(`Gagal Koneksi ke Apps Script: Status ${response.status}`);
+                }
+                
+                const responseText = await response.text();
+                
+                try {
+                    const responseData = JSON.parse(responseText);
+                    return responseData; 
+                } catch (e) {
+                    console.error("Gagal parse JSON. Respons dari Apps Script:", responseText);
+                    throw new Error('Respons Apps Script tidak valid atau koneksi terputus.');
+                }
+                
+            } catch (error) {
+                console.error("API Request Failed:", error);
+                throw new Error(error.message || 'Koneksi Jaringan Gagal. Periksa URL Apps Script Anda.');
+            }
+        }
+        
+        // --- SCANNER LOGIC (Diubah pada qrbox) ---
+        async function startBarcodeScanner() {
+            SCANNER_CONTAINER.classList.add('active');
+            SCAN_BUTTON.textContent = 'STOP SCAN';
+            SCAN_BUTTON.classList.remove('scan-btn');
+            SCAN_BUTTON.classList.add('minus-btn'); 
+
+            if (!html5QrCodeBarcode) {
+                html5QrCodeBarcode = new Html5Qrcode("reader"); 
+            }
+
+            const config = {
+                fps: 30, 
+                // PERUBAHAN UKURAN KOTAK QRBOX DI SINI: DARI 150x150 menjadi 200x200
+                qrbox: { width: 200, height: 200 }, 
+                disableFlip: false, 
+                formatsToSupport: [ 
+                    Html5QrcodeSupportedFormats.QR_CODE, 
+                    Html5QrcodeSupportedFormats.CODE_128, 
+                    Html5QrcodeSupportedFormats.EAN_13, 
+                    Html5QrCodeSupportedFormats.UPC_A,
+                    Html5QrCodeSupportedFormats.CODE_39,
+                    Html5QrCodeSupportedFormats.ITF,
+                    Html5QrCodeSupportedFormats.AZTEC,
+                    Html5QrCodeSupportedFormats.DATA_MATRIX,
+                    Html5QrCodeSupportedFormats.PDF_417,
+                ],
+                videoConstraints: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1280 }, 
+                    height: { ideal: 720 } 
+                }
+            };
+
+            try {
+                const cameras = await Html5Qrcode.getCameras();
+                if (cameras && cameras.length) {
+                    const rearCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment'));
+                    const cameraId = rearCamera ? rearCamera.id : cameras[0].id;
+                    
+                    await html5QrCodeBarcode.start(
+                        cameraId, 
+                        config,
+                        (decodedText, decodedResult) => {
+                            BARCODE_INPUT.value = decodedText.trim();
+                            stopBarcodeScanner();
+                            QTY_INPUT.focus(); 
+                        },
+                        (errorMessage) => {}
+                    );
+                    
+                } else {
+                     displayMessage('❌ Tidak ada kamera yang ditemukan.', 'error');
+                     stopBarcodeScanner();
+                }
+            } catch (error) {
+                if (error.name === "NotAllowedError" || error.message.includes("Permission denied")) {
+                     displayMessage('❌ Akses kamera ditolak! Harap Izinkan Akses Kamera dan coba lagi.', 'error');
+                } else {
+                     displayMessage('❌ Gagal memulai kamera: ' + error.message, 'error');
+                }
+                console.error("Gagal memulai Barcode Scanner:", error);
+                stopBarcodeScanner();
+            }
+        }
+        
+        function stopBarcodeScanner() {
+            if (html5QrCodeBarcode && html5QrCodeBarcode.isScanning) {
+                html5QrCodeBarcode.stop().then(() => {
+                    html5QrCodeBarcode = null; 
+                }).catch((err) => {
+                    console.error("Error stopping Barcode Scanner:", err);
+                    html5QrCodeBarcode = null; 
+                });
+            }
+            SCANNER_CONTAINER.classList.remove('active');
+            SCAN_BUTTON.textContent = 'SCAN';
+            SCAN_BUTTON.classList.remove('minus-btn');
+            SCAN_BUTTON.classList.add('scan-btn');
+        }
+        
+        // --- HANDLERS (Tidak diubah) ---
+        function handleMinusToggle() {
+            let currentValue = QTY_INPUT.value.trim();
+            if (currentValue === '') {
+                QTY_INPUT.value = '-';
+                MINUS_BUTTON.classList.add('active');
+                return;
+            }
+
+            if (currentValue.startsWith('-')) {
+                QTY_INPUT.value = currentValue.substring(1);
+                MINUS_BUTTON.classList.remove('active');
+            } else {
+                QTY_INPUT.value = '-' + currentValue;
+                MINUS_BUTTON.classList.add('active');
+            }
+            QTY_INPUT.focus();
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            stopBarcodeScanner(); 
+            
+            const qtyValue = QTY_INPUT.value.trim();
+
+            const data = {
+                lokasi: LOKASI_INPUT.value.trim(),
+                barcode: BARCODE_INPUT.value.trim(),
+                qty: qtyValue,
+                timestamp: new Date().toISOString() 
+            };
+
+            if (!data.lokasi || !data.barcode || !data.qty) {
+                displayMessage('❌ Harap isi semua kolom input.', 'error');
+                return;
+            }
+            
+            if (isNaN(Number(data.qty))) {
+                displayMessage('❌ Kuantitas (QTY) harus berupa angka yang valid.', 'error');
+                return;
+            }
+            
+            enqueueTransaction(data);
+            
+            displayMessage('✅ Transaksi baru ditambahkan ke antrian. Sedang diproses di latar belakang...', 'success', 3000);
+            resetForm();
+        }
+
+
+        // --- MAIN INITIALIZATION (Tidak diubah) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            SCAN_BUTTON.addEventListener('click', () => {
+                if (html5QrCodeBarcode && html5QrCodeBarcode.isScanning) { 
+                    stopBarcodeScanner();
+                } else {
+                    startBarcodeScanner();
+                }
+            });
+            
+            MINUS_BUTTON.addEventListener('click', handleMinusToggle);
+            INVENTORY_FORM.addEventListener('submit', handleFormSubmit);
+
+            updateQueueStatus();
+            processQueue(); 
+            
+            BARCODE_INPUT.focus();
+        });
+    </script>
+</body>
+</html>
